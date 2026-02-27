@@ -1,5 +1,17 @@
 # Endee: High-Performance Open Source Vector Database
 
+> ## 🚀 AI Resume Analyzer — Built on Endee
+>
+> This fork includes an **AI Resume Analyzer** that demonstrates semantic resume-to-job matching using vector embeddings stored in Endee.
+>
+> 👉 **[View the AI Resume Analyzer project →](ai-resume-analyzer/)**
+>
+> **Tech stack:** FastAPI · OpenAI Embeddings · Endee Vector DB · Cosine Similarity
+>
+> See the full documentation, architecture, and setup instructions in the [ai-resume-analyzer/README.md](ai-resume-analyzer/README.md).
+
+---
+
 **Endee (nD)** is a specialized, high-performance vector database built for speed and efficiency. This guide covers supported platforms, dependency requirements, and detailed build instructions using both our automated installer and manual CMake configuration.
 
 there are 3 ways to build and run endee:
