@@ -63,7 +63,7 @@ Recruiters and hiring pipelines rely on keyword matching, which:
 |---|---|
 | `main.py` | FastAPI app, endpoints, orchestration logic |
 | `embedding.py` | Text → vector embedding (OpenAI or fallback) |
-| `endee_client.py` | REST client for Endee (create, insert, search) |
+| `endee_client.py` | REST client for Endee (create, insert, search) with MsgPack decoding |
 | `similarity.py` | Cosine similarity & score aggregation |
 
 ---
@@ -75,10 +75,12 @@ Endee serves as the **vector storage and retrieval engine**:
 | Operation | Endee Endpoint | Purpose |
 |---|---|---|
 | Create Index | `POST /api/v1/index/create` | Initialise an index with a given dimensionality and cosine metric |
-| Insert Vectors | `POST /api/v1/vector/insert` | Store resume chunk embeddings with metadata |
-| Search Vectors | `POST /api/v1/vector/search` | Find the *k* nearest resume chunks to the job description embedding |
+| Insert Vectors | `POST /api/v1/index/<name>/vector/insert` | Store resume chunk embeddings with metadata |
+| Search Vectors | `POST /api/v1/index/<name>/search` | Find the *k* nearest resume chunks to the job description embedding |
 
-All communication happens over HTTP via the `requests` library — no native drivers or SDKs required.
+Search results are returned in **MessagePack** format and decoded automatically by the client.
+
+All communication happens over HTTP via the `requests` + `msgpack` libraries — no native drivers or SDKs required.
 
 ---
 

@@ -6,6 +6,9 @@ for evaluating how closely resume sections match a job description.
 """
 
 import math
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
@@ -37,21 +40,41 @@ def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
     return dot_product / (magnitude_1 * magnitude_2)
 
 
-def calculate_average_similarity(search_results: list[dict]) -> float:
+def calculate_match_score(search_results: list[dict]) -> float:
     """
-    Calculate the average similarity score from Endee search results.
+    Calculate a weighted match score from Endee search results.
 
-    Each result dict is expected to contain a "score" key.
+    Higher-ranked results (those returned first) receive more weight
+    because the closest matches matter more than marginal ones.
+
+    Weighting scheme:
+        weight_i = (n - i) / sum(1..n)
+        → first result gets weight n/Σ, last gets weight 1/Σ
+
+    Each result dict is expected to have a "score" key (distance or
+    similarity returned by Endee).
 
     Args:
-        search_results: List of result dicts returned by Endee,
-                        e.g. [{"id": 1, "score": 0.92}, ...].
+        search_results: Ranked list of result dicts from Endee,
+                        e.g. [{"id": "0", "score": 0.92}, ...].
 
     Returns:
-        Mean similarity score, or 0.0 if no results.
+        Weighted match score in [0, 1], or 0.0 if no results.
     """
     if not search_results:
+        logger.warning("No search results to score.")
         return 0.0
 
-    scores = [r.get("score", 0.0) for r in search_results]
-    return sum(scores) / len(scores)
+    n = len(search_results)
+    # Sum of arithmetic series 1+2+…+n for normalisation
+    weight_sum = n * (n + 1) / 2
+
+    weighted_total = 0.0
+    for rank, result in enumerate(search_results):
+        score = result.get("score", 0.0)
+        weight = (n - rank) / weight_sum  # higher weight for top matches
+        weighted_total += score * weight
+
+    final = min(max(weighted_total, 0.0), 1.0)  # clamp to [0, 1]
+    logger.info("Weighted match score: %.4f (from %d results)", final, n)
+    return final
