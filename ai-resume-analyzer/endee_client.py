@@ -180,35 +180,49 @@ def _normalise_search_results(raw) -> list[dict]:
     Convert the raw Endee search response (MsgPack-decoded) into a
     flat list of {id, score, meta} dicts.
 
-    Endee's ResultSet is serialised via MsgPack and may arrive as a
-    list of [id, distance] pairs, a dict with various keys, etc.
-    This function handles the common shapes gracefully.
+    Endee's MsgPack ResultSet format (per result):
+        [distance, id, meta_bytes, filter_str, norm_flag, sparse_data]
+
+    The distance is a raw float (lower = more similar for cosine).
+    We convert it to a similarity score in [0, 1] using:
+        score = 1 / (1 + distance)
     """
     results: list[dict] = []
 
     if isinstance(raw, list):
         for item in raw:
             if isinstance(item, dict):
+                # Dict-style result (future-proofing)
+                dist = float(item.get("distance", item.get("score", 0.0)))
+                meta_raw = item.get("meta", b"")
                 results.append({
-                    "id": item.get("id", ""),
-                    "score": float(item.get("distance", item.get("score", 0.0))),
-                    "meta": item.get("meta", ""),
+                    "id": str(item.get("id", "")),
+                    "score": 1.0 / (1.0 + dist) if dist >= 0 else 0.0,
+                    "meta": _decode_meta(meta_raw),
                 })
             elif isinstance(item, (list, tuple)) and len(item) >= 2:
-                # [id, distance] pair
+                # Endee tuple format: [distance, id, meta_bytes, ...]
+                distance = float(item[0])
+                vector_id = str(item[1])
+                meta_raw = item[2] if len(item) > 2 else b""
+
                 results.append({
-                    "id": str(item[0]),
-                    "score": float(item[1]),
-                    "meta": "",
+                    "id": vector_id,
+                    "score": 1.0 / (1.0 + distance) if distance >= 0 else 0.0,
+                    "meta": _decode_meta(meta_raw),
                 })
     elif isinstance(raw, dict):
-        # Might be wrapped: {"results": [...]} or {"ids":[], "distances":[]}
         if "results" in raw:
             return _normalise_search_results(raw["results"])
-        ids = raw.get("ids", [])
-        distances = raw.get("distances", [])
-        for i, (vid, dist) in enumerate(zip(ids, distances)):
-            results.append({"id": str(vid), "score": float(dist), "meta": ""})
 
     return results
+
+
+def _decode_meta(meta_raw) -> str:
+    """Decode metadata from bytes or string to a UTF-8 string."""
+    if isinstance(meta_raw, bytes):
+        return meta_raw.decode("utf-8", errors="replace")
+    if isinstance(meta_raw, str):
+        return meta_raw
+    return ""
 
